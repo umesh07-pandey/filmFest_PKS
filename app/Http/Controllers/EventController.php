@@ -18,13 +18,57 @@ class EventController extends Controller
             DB::beginTransaction();
 
             $adminData = auth()->user();
-            $eventData=$adminData->event;
+            $eventData = $adminData->event;
             // $categoryData=$eventData->category;
             // $categoryId=$eventData->id;
             // Log::info("data",["categiryId"=>$categoryId]);
 
 
-            $request->validate([
+            // $validateData=$request->validate([
+            //     "name" => "required|string|max:255",
+            //     "description" => "required|string|max:255",
+            //     "starting_date" => "required|date_format:Y-m-d H:i:s",
+            //     "ending_date" => "required|date_format:Y-m-d H:i:s|after_or_equal:starting_date",
+            //     "venue_name" => "required|string|max:255",
+            //     "address_line" => "required|string|max:255",
+            //     "city" => "required|string|max:255",
+            //     "state" => "required|string|max:255",
+            //     "country" => "required|string|max:255",
+            //     "pin_code" => "required|string|max:20",
+            //     "event_capicity" => "required|string|max:20",
+            //     "image" => "required|string|max:255",
+            //     "category_id" => "required|exists:category,id",
+            // ]);
+
+
+
+            // $eventData = Event::create([
+            //     "name" => $request->name,
+            //     "description" => $request->description,
+            //     "starting_date" => $request->starting_date,
+            //     "ending_date" => $request->ending_date,
+            //     "venue_name" => $request->venue_name,
+            //     "address_line" => $request->address_line,
+            //     "city" => $request->city,
+            //     "state" => $request->state,
+            //     "country" => $request->country,
+            //     "pin_code" => $request->pin_code,
+            //     "image" => $request->image,
+            //     "event_capicity"=>$request->event_capicity,
+            //     "admin_id" => $adminData->id,
+            //     "category_id"=>$request->category_id,
+            // ]);
+
+
+
+
+
+
+
+
+
+
+            $validator = Validator::make($request->all(), [
                 "name" => "required|string|max:255",
                 "description" => "required|string|max:255",
                 "starting_date" => "required|date_format:Y-m-d H:i:s",
@@ -39,28 +83,44 @@ class EventController extends Controller
                 "image" => "required|string|max:255",
                 "category_id" => "required|exists:category,id",
             ]);
-            
 
-            $eventData = Event::create([
-                "name" => $request->name,
-                "description" => $request->description,
-                "starting_date" => $request->starting_date,
-                "ending_date" => $request->ending_date,
-                "venue_name" => $request->venue_name,
-                "address_line" => $request->address_line,
-                "city" => $request->city,
-                "state" => $request->state,
-                "country" => $request->country,
-                "pin_code" => $request->pin_code,
-                "image" => $request->image,
-                "event_capicity"=>$request->event_capicity,
+            // Validation fail hone par
+            if ($validator->fails()) {
+                return response()->json([
+
+                    'message' => 'Validation errors',
+                    'errors' => $validator->errors(),
+                    "status" => "false",
+                ], 422);
+            }
+
+
+
+
+            // Validation successful — ab event create karo
+            $validatedData = $validator->validated();
+
+            $event = Event::create([
+                "name" => $validatedData['name'],
+                "description" => $validatedData['description'],
+                "starting_date" => $validatedData['starting_date'],
+                "ending_date" => $validatedData['ending_date'],
+                "venue_name" => $validatedData['venue_name'],
+                "address_line" => $validatedData['address_line'],
+                "city" => $validatedData['city'],
+                "state" => $validatedData['state'],
+                "country" => $validatedData['country'],
+                "pin_code" => $validatedData['pin_code'],
+                "image" => $validatedData['image'],
+                "event_capicity" => $validatedData['event_capicity'],
                 "admin_id" => $adminData->id,
-                "category_id"=>$request->category_id,
+                "category_id" => $validatedData['category_id'],
             ]);
+
 
             $data = [
                 "admin_id" => $adminData->id,
-                "event" => $eventData
+                "event" => $event
             ];
 
             DB::commit();
@@ -119,7 +179,7 @@ class EventController extends Controller
             $updateId = $request->query('id');
 
             // Validate the request data
-            $request->validate([
+            $validator = Validator::make($request->all(), [
                 "name" => "sometimes|string|max:255",
                 "description" => "sometimes|string|max:255",
                 "starting_date" => "sometimes|date_format:Y-m-d H:i:s",
@@ -130,10 +190,22 @@ class EventController extends Controller
                 "state" => "sometimes|string|max:255",
                 "country" => "sometimes|string|max:255",
                 "pin_code" => "sometimes|string|max:20",
-                "image" => "sometimes|string|max:255"
+                "image" => "sometimes|string|max:255",
+                "event_capicity" => "sometimes|string|max:20",
+                "category_id" => "sometimes|exists:category,id",
             ]);
 
-            // Find the event by id and check if it belongs to this admin
+            // Agar validation fail ho
+            if ($validator->fails()) {
+                return response()->json([
+                    
+                    'message' => 'Validation errors',
+                    'errors' => $validator->errors(),
+                    "status"=>"false"
+                ], 422);
+            }
+
+            // Event find karo
             $event = Event::where('id', $updateId)->where('admin_id', $adminData->id)->first();
 
             if (!$event) {
@@ -144,20 +216,10 @@ class EventController extends Controller
                 ], 404);
             }
 
+            // Sirf validated data leke update karo
+            $validatedData = $validator->validated();
+            $event->update($validatedData);
 
-            $event->update($request->only([
-                "name",
-                "description",
-                "starting_date",
-                "ending_date",
-                "venue_name",
-                "address_line",
-                "city",
-                "state",
-                "country",
-                "pin_code",
-                "image"
-            ]));
 
             DB::commit();
 
@@ -246,6 +308,8 @@ class EventController extends Controller
                     'starting_date' => $event->starting_date,
                     'ending_date' => $event->ending_date,
                     'image' => $event->image,
+                    'event_capicity'=>$event->event_capicity,
+                    'category_id'=>$event->category_id
 
                 ];
             });
@@ -308,6 +372,8 @@ class EventController extends Controller
                     'starting_date' => $event->starting_date,
                     'ending_date' => $event->ending_date,
                     'image' => $event->image,
+                    'event_capicity'=>$event->event_capicity,
+                    'category_id'=>$event->category_id
                 ];
             });
 
@@ -401,23 +467,21 @@ class EventController extends Controller
 
     }
 
-    public function fetchByCategory(Request $request){
-        try
-        {
+    public function fetchByCategory(Request $request)
+    {
+        try {
             // $adminData=auth()->user();
             // $eventData=$adminData->events;
-            $categoryId=$request->query("id");  
-            $allEvent=Event::where("category_id",$categoryId)->All();
-          
+            $categoryId = $request->query("id");
+            $allEvent = Event::where("category_id", $categoryId)->All();
 
 
 
-            $searchId=$request->query("id");
 
-        }
-        catch(\Exception $e)
-        {
-            
+            $searchId = $request->query("id");
+
+        } catch (\Exception $e) {
+
 
         }
     }
